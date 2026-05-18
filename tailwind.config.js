@@ -56,12 +56,17 @@ export default {
           '0%': { opacity: '0', transform: 'translateX(8px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
+        ticker: {
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         flicker: 'flicker 4s infinite',
         scan: 'scan 6s linear infinite',
         pulseSoft: 'pulseSoft 2.4s ease-in-out infinite',
         slideIn: 'slideIn 0.35s ease-out both',
+        ticker: 'ticker 40s linear infinite',
       },
     },
   },
