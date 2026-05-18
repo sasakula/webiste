@@ -89,12 +89,17 @@ src/
 
 ## Halaman
 
-| Path | Deskripsi |
-| ---- | --------- |
-| `/owner`         | Dashboard owner: kartu status + feed kejadian. |
-| `/live`          | Tampilan kota 16:9 untuk livestream desktop.   |
-| `/live/vertical` | Tampilan kota 9:16 untuk HP / TikTok.          |
-| `/settings`      | Pengaturan tema, kecepatan, dan parameter.     |
+| Path             | Layout    | Deskripsi                                                            |
+| ---------------- | --------- | -------------------------------------------------------------------- |
+| `/`              | —         | Pemilihan mode (owner / live horizontal / live vertical / settings). |
+| `/owner`         | Shell     | Dashboard owner: kartu status, kontrol simulasi, tabel warga, tabel bangunan, log lengkap. |
+| `/live`          | LiveShell | Tampilan kota 16:9 cinematic untuk YouTube/Facebook (cocok OBS).     |
+| `/live-vertical` | LiveShell | Tampilan kota 9:16 cinematic untuk TikTok/Instagram.                 |
+| `/settings`      | Shell     | Pengaturan tema, kecepatan, parameter dunia.                         |
+
+**Shell** menampilkan TopBar admin + SideNav navigasi.
+**LiveShell** menampilkan halaman full-bleed tanpa elemen admin (cocok untuk
+livestream / OBS browser source).
 
 ## Catatan Pengembangan
 

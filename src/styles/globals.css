@@ -100,4 +100,16 @@
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
   }
+  /* Track marquee untuk LiveEventTicker. List di-duplikasi 2x lalu
+     animate dari 0 ke -50% supaya loop mulus tanpa jump. */
+  .ticker-track {
+    animation: nl-ticker 40s linear infinite;
+    will-change: transform;
+  }
+}
+
+/* Keyframes ticker harus di luar @layer agar selalu di-emit. */
+@keyframes nl-ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }

@@ -1,13 +1,18 @@
-// Canvas placeholder pixel-art untuk fondasi.
-// Menggambar peta kota statis sederhana (jalan, plaza, pohon, beberapa NPC titik)
-// agar route Live tidak tampak kosong sebelum engine simulasi dipasang.
+// Canvas placeholder pixel-art.
+// Menggambar peta kota statis sederhana (jalan, plaza, pohon, bangunan, NPC titik
+// bergerak) supaya halaman Live tidak tampak kosong sebelum engine dipasang.
+// Mode `fullBleed` = canvas full tanpa header panel (untuk halaman live).
 import { useEffect, useRef } from 'react';
 
 const TILE = 12;
 const COLS = 40;
 const ROWS = 28;
 
-export default function CityCanvasPlaceholder({ mode = 'horizontal', className = '' }) {
+export default function CityCanvasPlaceholder({
+  mode = 'horizontal',
+  className = '',
+  fullBleed = false,
+}) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -15,7 +20,6 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Sprite NPC titik bergerak sederhana (animasi langkah)
     const npcs = Array.from({ length: 8 }, (_, i) => ({
       x: 4 + i * 4,
       y: 6 + (i % 3) * 6,
@@ -74,23 +78,18 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
 
     // Layout statis (peta kecil)
     const map = Array.from({ length: ROWS }, () => Array(COLS).fill('grass'));
-    // Jalan horizontal
     [6, 14, 22].forEach((y) => {
       for (let x = 0; x < COLS; x++) map[y][x] = 'road';
       if (y > 0) for (let x = 0; x < COLS; x++) map[y - 1][x] = 'sidewalk';
       if (y < ROWS - 1) for (let x = 0; x < COLS; x++) map[y + 1][x] = 'sidewalk';
     });
-    // Jalan vertikal
     [10, 22, 32].forEach((x) => {
       for (let y = 0; y < ROWS; y++) map[y][x] = 'road';
       if (x > 0) for (let y = 0; y < ROWS; y++) map[y][x - 1] = 'sidewalk';
       if (x < COLS - 1) for (let y = 0; y < ROWS; y++) map[y][x + 1] = 'sidewalk';
     });
-    // Plaza
-    for (let y = 9; y < 13; y++) {
-      for (let x = 17; x < 21; x++) map[y][x] = 'plaza';
-    }
-    // Bangunan
+    for (let y = 9; y < 13; y++) for (let x = 17; x < 21; x++) map[y][x] = 'plaza';
+
     const buildings = [
       [3, 2, 4, 3], [13, 2, 4, 3], [25, 2, 4, 3], [34, 2, 4, 3],
       [3, 9, 4, 4], [25, 9, 4, 4], [34, 9, 4, 4],
@@ -102,7 +101,6 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
         for (let x = bx; x < bx + bw; x++)
           if (map[y] && map[y][x] === 'grass') map[y][x] = 'building';
     }
-    // Pohon
     const trees = [[8, 4], [20, 5], [30, 4], [8, 12], [20, 12], [30, 12], [8, 20], [20, 20], [30, 20]];
     for (const [tx, ty] of trees) if (map[ty] && map[ty][tx] === 'grass') map[ty][tx] = 'tree';
 
@@ -120,10 +118,11 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
       ctx.fillStyle = '#04030a';
       ctx.fillRect(0, 0, cssW, cssH);
 
-      // Pas-kan map ke viewport
+      // Pas-kan map ke viewport — di mode fullBleed kita "cover" supaya canvas
+      // selalu penuh frame meski rasionya beda.
       const scaleX = cssW / (COLS * TILE);
       const scaleY = cssH / (ROWS * TILE);
-      const scale = Math.min(scaleX, scaleY);
+      const scale = fullBleed ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
       const offX = (cssW - COLS * TILE * scale) / 2;
       const offY = (cssH - ROWS * TILE * scale) / 2;
 
@@ -131,28 +130,22 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
       ctx.translate(offX, offY);
       ctx.scale(scale, scale);
 
-      // Tiles
       for (let y = 0; y < ROWS; y++)
         for (let x = 0; x < COLS; x++) drawTile(x, y, map[y][x]);
 
-      // NPC titik bergerak (placeholder animasi)
       for (const n of npcs) {
         n.x += n.vx;
         if (n.x < 1 || n.x > COLS - 2) n.vx *= -1;
         const px = n.x * TILE;
         const py = n.y * TILE;
-        // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(Math.round(px - 2), Math.round(py + 4), 4, 1);
-        // Body
         ctx.fillStyle = n.color;
         ctx.fillRect(Math.round(px - 2), Math.round(py - 2), 4, 5);
-        // Head
         ctx.fillStyle = '#f5deb3';
         ctx.fillRect(Math.round(px - 2), Math.round(py - 5), 4, 2);
       }
 
-      // Vignette ringan
       const grad = ctx.createRadialGradient(
         COLS * TILE / 2, ROWS * TILE / 2, 80,
         COLS * TILE / 2, ROWS * TILE / 2, COLS * TILE
@@ -167,7 +160,16 @@ export default function CityCanvasPlaceholder({ mode = 'horizontal', className =
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [fullBleed]);
+
+  if (fullBleed) {
+    return (
+      <div className={`relative w-full h-full overflow-hidden ${className}`}>
+        <canvas ref={canvasRef} className="w-full h-full pixel-edge" />
+        <div className="pointer-events-none absolute inset-0 scanlines opacity-30" />
+      </div>
+    );
+  }
 
   return (
     <div className={`panel relative overflow-hidden ${className}`}>
