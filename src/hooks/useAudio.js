@@ -30,6 +30,10 @@ let _state = loadState();
 const _listeners = new Set();
 
 function loadState() {
+  // Guard SSR / build-time — kalau `window` belum ada, pakai default.
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return { ...DEFAULTS };
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULTS };
@@ -41,10 +45,11 @@ function loadState() {
 }
 
 function persist() {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(_state));
   } catch {
-    // ignore (private mode etc.)
+    // ignore (private mode, quota exceeded, dll.)
   }
 }
 

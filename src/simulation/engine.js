@@ -27,6 +27,10 @@ import { tickNpc, tickSocialEncounters, projectNpc } from '../npc/npcAI.js';
 // Berapa milidetik per tick pada speed 1x. Lebih kecil = lebih cepat.
 const BASE_TICK_MS = 500;
 
+// Throttle UI publish — minimum jeda antar publish ke React listener
+// supaya re-render tidak terlalu sering meski engine tick lebih cepat.
+const UI_PUBLISH_MIN_MS = 125; // ~8 Hz
+
 // =============================================================================
 // State singleton + listener registry
 // =============================================================================
@@ -43,6 +47,7 @@ let _listeners = new Set();
 let _running = false;
 let _rafId = 0;
 let _lastTickAt = 0;
+let _lastPublishAt = 0;
 
 // Welcome event hanya sekali di awal hidup engine.
 pushEvent(_world, 'NeoLife Indonesia mulai disiarkan langsung.', 'KOTA');
@@ -127,7 +132,13 @@ function loop(now) {
       ticked = true;
     }
     _lastTickAt = now - elapsed;
-    if (ticked) publish();
+
+    // Throttle UI publish — engine boleh tick 16x/detik di speed 8x, tapi
+    // React tidak butuh re-render segitu sering. Cap di 8 Hz (~125ms).
+    if (ticked && now - _lastPublishAt >= UI_PUBLISH_MIN_MS) {
+      _lastPublishAt = now;
+      publish();
+    }
   } else {
     _lastTickAt = now;
   }
@@ -198,5 +209,28 @@ if (typeof import.meta !== 'undefined' && import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (_rafId) cancelAnimationFrame(_rafId);
     _running = false;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', _onVisibilityChange);
+    }
   });
+}
+
+// =============================================================================
+// Visibility throttle
+// Saat tab tersembunyi, browser sudah throttle RAF ke ~1 Hz. Tanpa handling,
+// saat tab kembali aktif loop akan "catch-up" dan tick banyak sekaligus
+// (menghasilkan ledakan event). Kita reset timestamp saat tab visible lagi
+// supaya simulasi nyambung mulus tanpa lompat banyak menit dunia.
+// =============================================================================
+
+function _onVisibilityChange() {
+  if (typeof document === 'undefined') return;
+  if (!document.hidden) {
+    _lastTickAt = performance.now();
+    _lastPublishAt = performance.now();
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', _onVisibilityChange);
 }

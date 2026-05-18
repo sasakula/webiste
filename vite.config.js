@@ -2,13 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Production-tuned Vite config:
-// - target modern browsers so Vercel ships smaller, faster bundles
-// - manual chunking keeps framer-motion (the heaviest dep) in its own file
-//   so the app shell can paint while it streams
-// - relative base path means the build is host-agnostic (Vercel, Netlify,
-//   GitHub Pages, plain static VPS — all just work)
+// - target browser modern supaya bundle tetap ringan
+// - manual chunking memisahkan framer-motion + react-router supaya app shell
+//   bisa paint duluan sebelum chunk berat selesai streaming
+// - base '/' aman dengan BrowserRouter; SPA fallback diatur di vercel.json
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react()],
   server: {
     host: true,
@@ -28,7 +27,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ['react', 'react-dom'],
+          react:  ['react', 'react-dom'],
+          router: ['react-router-dom'],
           motion: ['framer-motion'],
         },
       },

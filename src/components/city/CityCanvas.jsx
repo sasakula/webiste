@@ -561,6 +561,34 @@ function paintRain(ctx, particles, intensity) {
   ctx.stroke();
 }
 
+function paintFocusHighlight(ctx, slot, time) {
+  // Glow ring pulse di sekitar bangunan yang sedang difokus.
+  const px = slot.x * TILE;
+  const py = slot.y * TILE;
+  const pw = slot.w * TILE;
+  const ph = slot.h * TILE;
+  const cx = px + pw / 2;
+  const cy = py + ph / 2;
+
+  const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+  const r = Math.max(pw, ph) * 0.85;
+
+  // Soft radial halo
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.4);
+  grad.addColorStop(0, `rgba(34, 211, 238, ${0.15 + pulse * 0.15})`);
+  grad.addColorStop(0.6, 'rgba(34, 211, 238, 0.04)');
+  grad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - r * 1.4, cy - r * 1.4, r * 2.8, r * 2.8);
+
+  // Outline neon
+  ctx.strokeStyle = `rgba(34, 211, 238, ${0.5 + pulse * 0.4})`;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(px - 1, py - 1, pw + 2, ph + 2);
+  ctx.setLineDash([]);
+}
+
 function paintVignette(ctx, w, h) {
   const g = ctx.createRadialGradient(
     w / 2, h / 2, Math.min(w, h) * 0.35,
@@ -584,13 +612,13 @@ export default function CityCanvas({
 }) {
   const canvasRef = useRef(null);
 
-  // Layout dirakit hanya saat jumlah/identitas bangunan berubah.
-  // Properti seperti progress/status berubah lebih sering tapi tidak butuh rebuild.
-  const layout = useMemo(() => buildLayout(buildings || []), [
-    // Stable key: id + status sudah cukup. Progress berubah tiap tick → kita
-    // baca dari `buildings` saat painting (lihat patch progress bawah).
-    buildings.map((b) => `${b.id}:${b.status}`).join('|'),
-  ]);
+  // Layout dirakit hanya saat identitas bangunan berubah strukturnya.
+  // Properti seperti progress/status berubah lebih sering — di-sinkronkan ke
+  // `layout.slots` di dalam RAF loop (lihat di bawah), bukan saat render.
+  // Stable key: id + status sudah cukup; sengaja di-precompute supaya useMemo
+  // tidak alokasi string baru tiap render.
+  const layoutKey = buildings.map((b) => `${b.id}:${b.status}`).join('|');
+  const layout = useMemo(() => buildLayout(buildings || []), [layoutKey]);
 
   // Bake city statis (sekali per layout). Hanya "shell" tile + bangunan;
   // progress/jendela menyala/mobil/NPC = layer dinamis.
@@ -599,18 +627,8 @@ export default function CityCanvas({
     bakedRef.current = bakeCity(layout);
   }, [layout]);
 
-  // Patch progress dari prop buildings ke layout.slots tiap render.
-  // Ini sangat ringan: cuma loop 8-30 entri.
-  if (layout && buildings) {
-    const byId = new Map(buildings.map((b) => [b.id, b]));
-    for (const s of layout.slots) {
-      const b = byId.get(s.id);
-      if (b) {
-        s.progress = typeof b.progress === 'number' ? b.progress : s.progress;
-        s.status = b.status;
-      }
-    }
-  }
+  // Patch progress dari prop buildings ke layout.slots — DILAKUKAN DI RAF LOOP,
+  // bukan di body render. Lihat awal `loop()` di useEffect.
 
   // Posisi NPC di-cache di Map. Kalau NPC baru muncul, kita spawn di slot
   // bangunan yang cocok dengan `location`-nya. Kalau location berubah,
@@ -632,9 +650,7 @@ export default function CityCanvas({
   const propsRef = useRef({});
   propsRef.current = {
     npcs, buildings, world, cameraMode, showLabels, layout,
-  };
-
-  // Kamera state internal.
+  };  // Kamera state internal.
   // - sx, sy, sZoom: nilai smoothed yang dipakai render
   // - tx, ty, tz:    target (di-update saat orbit/event-focus)
   // - lastFocusId, focusUntil: anti-spam, ganti target maksimal beberapa detik sekali
@@ -656,12 +672,25 @@ export default function CityCanvas({
 
     const loop = (now) => {
       const time = (now - t0) / 1000;
-      const { npcs, world, cameraMode, showLabels, layout } =
+      const { npcs, world, cameraMode, showLabels, layout, buildings } =
         propsRef.current;
       const baked = bakedRef.current;
       if (!baked) {
         raf = requestAnimationFrame(loop);
         return;
+      }
+
+      // Sinkronkan progress + status terbaru ke slot. Loop kecil (8-30 entri)
+      // dan dijalankan di RAF, bukan saat render React.
+      if (buildings && buildings.length) {
+        const byId = new Map(buildings.map((b) => [b.id, b]));
+        for (const s of layout.slots) {
+          const b = byId.get(s.id);
+          if (b) {
+            s.progress = typeof b.progress === 'number' ? b.progress : s.progress;
+            s.status = b.status;
+          }
+        }
       }
 
       // -- Resize / DPR --
@@ -758,6 +787,13 @@ export default function CityCanvas({
 
       // -- NPCs (update target & posisi) --
       paintAllNpcs(ctx, npcs, layout, npcStateRef.current, time);
+
+      // -- Highlight bangunan yang sedang difokus kamera (glow ring pulse) --
+      // Hanya saat liveMode dan dalam window holdUntil agar tidak distraksi.
+      if (liveMode && cam.lastFocusId && time < cam.holdUntil) {
+        const slot = layout.slots.find((s) => s.id === cam.lastFocusId);
+        if (slot) paintFocusHighlight(ctx, slot, time);
+      }
 
       // -- Rain particles (di world space) --
       const rainI = rainIntensity(world.cuaca);

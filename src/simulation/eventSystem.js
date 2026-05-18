@@ -6,8 +6,8 @@
 // kategori (untuk drama): KONFLIK, CINTA, DRAMA, PRESTASI, PEKERJAAN,
 //                          KEBAIKAN, KRIMINAL, EKONOMI, CUACA, PEMBANGUNAN, KOTA
 
-const MAX_EVENTS = 60;
-const MAX_DRAMA  = 40;
+const MAX_EVENTS = 50;
+const MAX_DRAMA  = 30;
 
 function nowLabel(world) {
   return `${String(world.jam).padStart(2, '0')}:${String(world.menit).padStart(2, '0')}`;
