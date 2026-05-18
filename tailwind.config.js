@@ -4,63 +4,64 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#eef4ff',
-          100: '#d9e6ff',
-          200: '#b3ccff',
-          300: '#85a9ff',
-          400: '#5c83f5',
-          500: '#3a62e0',
-          600: '#2a48b8',
-          700: '#1f3690',
-          800: '#152765',
-          900: '#0b1740',
-          950: '#060e29',
+        ink: {
+          950: '#05030f',
+          900: '#0a0818',
+          800: '#0f0d22',
+          700: '#15122e',
+          600: '#1c1838',
+          500: '#231e44',
         },
-        accent: {
-          50: '#fff8e6',
-          100: '#ffeeb8',
-          200: '#ffdd7a',
-          300: '#ffc94d',
-          400: '#ffb12a',
-          500: '#f59307',
-          600: '#d77400',
-          700: '#a35400',
-          800: '#6e3900',
+        neon: {
+          cyan: '#22d3ee',
+          blue: '#3b82f6',
+          violet: '#8b5cf6',
+          purple: '#a855f7',
+          pink: '#ec4899',
+          lime: '#a3e635',
+          amber: '#fbbf24',
+          red: '#f87171',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
-        display: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Rajdhani', 'system-ui', 'sans-serif'],
+        display: ['Orbitron', 'Rajdhani', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       boxShadow: {
-        soft: '0 10px 30px -10px rgba(11, 23, 64, 0.15)',
-        card: '0 8px 24px -8px rgba(11, 23, 64, 0.18)',
+        glow: '0 0 24px -4px rgba(139, 92, 246, 0.55)',
+        'glow-cyan': '0 0 24px -4px rgba(34, 211, 238, 0.55)',
+        panel: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 40px -10px rgba(0,0,0,0.6)',
+      },
+      backgroundImage: {
+        'grid-faint':
+          'linear-gradient(rgba(139,92,246,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.06) 1px, transparent 1px)',
+        'scanlines':
+          'repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px)',
       },
       keyframes: {
-        'fade-up': {
-          '0%': { opacity: '0', transform: 'translateY(24px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+        flicker: {
+          '0%,19%,21%,23%,25%,54%,56%,100%': { opacity: '1' },
+          '20%,24%,55%': { opacity: '0.55' },
         },
-        'fade-in': {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+        scan: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' },
         },
-        'float-slow': {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
+        pulseSoft: {
+          '0%,100%': { opacity: '0.55' },
+          '50%': { opacity: '1' },
         },
-        'pulse-ring': {
-          '0%': { transform: 'scale(0.95)', opacity: '0.6' },
-          '70%': { transform: 'scale(1.4)', opacity: '0' },
-          '100%': { transform: 'scale(1.4)', opacity: '0' },
+        slideIn: {
+          '0%': { opacity: '0', transform: 'translateX(8px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
         },
       },
       animation: {
-        'fade-up': 'fade-up 0.7s ease-out both',
-        'fade-in': 'fade-in 0.6s ease-out both',
-        'float-slow': 'float-slow 4s ease-in-out infinite',
-        'pulse-ring': 'pulse-ring 1.8s ease-out infinite',
+        flicker: 'flicker 4s infinite',
+        scan: 'scan 6s linear infinite',
+        pulseSoft: 'pulseSoft 2.4s ease-in-out infinite',
+        slideIn: 'slideIn 0.35s ease-out both',
       },
     },
   },

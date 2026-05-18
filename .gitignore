@@ -1,29 +1,53 @@
-# dependencies
+# Dependencies
 node_modules
 .pnpm-store
+.yarn
+.npm
 
-# build output
+# Build output
 dist
 dist-ssr
+build
+.vite
 
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# Vercel
+.vercel
 
-# env
+# Local env files
 .env
 .env.local
 .env.*.local
 
-# editor
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Caches
+.cache
+.parcel-cache
+.eslintcache
+.turbo
+
+# OS / system
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Coverage / test
+coverage
+*.lcov
