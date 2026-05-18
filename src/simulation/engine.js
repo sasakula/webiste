@@ -1,97 +1,186 @@
-// Top-level simulation engine. Builds the world, ticks all subsystems, and
-// exposes a tiny imperative API used by the React store.
-import {
-  NPC_COUNT,
-  SIM_TICK_MS,
-  SPEED_OPTIONS,
-} from './constants.js';
-import { advanceTime, formatClock } from './time.js';
-import { setSeed } from './random.js';
-import { generateCity } from './world/city.js';
-import { initWeather, tickWeather } from './world/weather.js';
-import { initEconomy, tickEconomy } from './world/economy.js';
-import { createEventLog, pushEvent } from './events/eventBus.js';
-import { maybeFireRandomEvent } from './events/randomEvents.js';
-import { createNpc } from './npc/factory.js';
-import { tickNpc } from './npc/ai.js';
+// =============================================================================
+// Engine simulasi NeoLife Indonesia.
+//
+// Engine adalah **module singleton**: satu world untuk seluruh aplikasi,
+// supaya halaman /owner, /live, dan /live-vertical membaca state yang sama.
+// React component subscribe via hook `useSimulation` (lihat hooks/useSimulation.js).
+//
+// Cara kerja loop (sangat sederhana, gampang di-extend):
+//   - createWorld()       : bikin state dunia awal.
+//   - start()             : mulai requestAnimationFrame loop.
+//   - tick()              : maju 1 menit dunia, panggil semua sub-system.
+//   - publish()           : push snapshot baru ke semua listener (UI).
+//
+// Speed 1x = 2 tick / detik. Speed 2x/4x/8x = 4/8/16 tick / detik.
+// Pause -> loop tetap jalan tapi tidak memajukan state.
+// =============================================================================
 
-export function createWorld({ seed = 1337 } = {}) {
-  setSeed(seed);
-  const city = generateCity();
-  const eventLog = createEventLog();
-  const economy = initEconomy();
-  const weather = initWeather();
-  const state = {
-    tick: 0,
-    minutes: 8 * 60, // start at 08:00
-    speedIndex: 1,   // 1x by default
-    paused: false,
-    cinematicFocusId: null,
-    cinematicUntilTick: 0,
-    activeCrime: null,
-    outageUntilMinute: 0,
-    lastRandomEventMinutes: 0,
+import { createWorld } from './world.js';
+import { tickTime } from './timeSystem.js';
+import { tickWeather } from './weatherSystem.js';
+import { tickEconomy } from './economySystem.js';
+import { tickCrime } from './crimeSystem.js';
+import { tickConstruction } from './constructionSystem.js';
+import { tickRandomEvents, tickScheduledEvents, pushEvent } from './eventSystem.js';
+
+// Berapa milidetik per tick pada speed 1x. Lebih kecil = lebih cepat.
+const BASE_TICK_MS = 500;
+
+// =============================================================================
+// State singleton + listener registry
+// =============================================================================
+
+let _world = createWorld();
+let _snapshot = buildSnapshot(_world);
+let _listeners = new Set();
+let _running = false;
+let _rafId = 0;
+let _lastTickAt = 0;
+
+// Welcome event hanya sekali di awal hidup engine.
+pushEvent(_world, 'NeoLife Indonesia mulai disiarkan langsung.', 'KOTA');
+_snapshot = buildSnapshot(_world);
+
+// =============================================================================
+// Public API
+// =============================================================================
+
+export function getSnapshot() {
+  return _snapshot;
+}
+
+export function subscribe(listener) {
+  _listeners.add(listener);
+  // Pastikan engine berjalan saat ada listener pertama.
+  ensureRunning();
+  return () => {
+    _listeners.delete(listener);
+    // Catatan: kita biarkan engine tetap jalan walau listener kosong,
+    // supaya world terus hidup saat user pindah route. Hemat dengan tetap
+    // berjalan ringan di RAF.
   };
-  const world = { city, state, weather, economy, eventLog, npcs: [] };
-  const npcs = Array.from({ length: NPC_COUNT }, (_, i) => createNpc(city, i));
-  world.npcs = npcs;
-
-  // Welcome event
-  pushEvent(eventLog, state, {
-    type: 'system',
-    severity: 'info',
-    text: 'NeoLife online. Streaming live from Sector 7.',
-  });
-
-  return world;
 }
 
-export function getSpeed(world) {
-  return SPEED_OPTIONS[world.state.speedIndex] ?? 1;
+export function pause() {
+  if (_world.paused) return;
+  _world = { ..._world, paused: true };
+  publish();
 }
 
-export function setSpeedIndex(world, idx) {
-  world.state.speedIndex = Math.max(0, Math.min(SPEED_OPTIONS.length - 1, idx));
-  world.state.paused = SPEED_OPTIONS[world.state.speedIndex] === 0;
+export function play() {
+  if (!_world.paused) return;
+  _world = { ..._world, paused: false };
+  publish();
 }
 
-export function togglePause(world) {
-  if (world.state.paused) {
-    if (getSpeed(world) === 0) world.state.speedIndex = 1;
-    world.state.paused = false;
+export function togglePause() {
+  if (_world.paused) play(); else pause();
+}
+
+export function setSpeed(speed) {
+  const allowed = [1, 2, 4, 8];
+  const next = allowed.includes(speed) ? speed : 1;
+  if (_world.speed === next && !_world.paused) return;
+  _world = { ..._world, speed: next, paused: false };
+  publish();
+}
+
+// Reset world (handy untuk Settings → tombol reset di masa depan).
+export function reset() {
+  _world = createWorld();
+  pushEvent(_world, 'Simulasi di-reset.', 'KOTA');
+  publish();
+}
+
+// =============================================================================
+// Loop internal
+// =============================================================================
+
+function ensureRunning() {
+  if (_running) return;
+  _running = true;
+  _lastTickAt = performance.now();
+  _rafId = requestAnimationFrame(loop);
+}
+
+function loop(now) {
+  // Saat di-pause, kita tetap jalan tapi tidak tick. Ini supaya kalau user
+  // klik play, engine langsung nyambung tanpa delay.
+  const interval = BASE_TICK_MS / Math.max(1, _world.speed);
+
+  if (!_world.paused) {
+    let elapsed = now - _lastTickAt;
+    let ticked = false;
+
+    // Cap maksimal tick per frame supaya tidak death-spiral kalau tab di-resume.
+    let safety = 30;
+    while (elapsed >= interval && safety-- > 0) {
+      tick();
+      elapsed -= interval;
+      ticked = true;
+    }
+    _lastTickAt = now - elapsed;
+    if (ticked) publish();
   } else {
-    world.state.paused = true;
+    _lastTickAt = now;
   }
+
+  _rafId = requestAnimationFrame(loop);
 }
 
-// Performs N simulation ticks. Called from a wall-clock loop in React.
-export function step(world, steps = 1) {
-  for (let s = 0; s < steps; s++) {
-    world.state.tick++;
-    advanceTime(world.state, 1);
-
-    // World subsystems
-    tickWeather(world.weather, world.state, (payload) =>
-      pushEvent(world.eventLog, world.state, payload)
-    );
-    tickEconomy(world.economy, world.state);
-    maybeFireRandomEvent(world);
-
-    // Expire active crime
-    if (world.state.activeCrime
-        && world.state.minutes >= world.state.activeCrime.expiresMinute) {
-      world.state.activeCrime = null;
-    }
-
-    // Tick NPCs
-    for (let i = 0; i < world.npcs.length; i++) {
-      tickNpc(world.npcs[i], world);
-    }
-  }
+function tick() {
+  // Engine memutasi `_world` langsung untuk efisiensi (objek besar, banyak field).
+  // Snapshot di-rebuild sekali setelah loop selesai.
+  tickTime(_world);
+  tickWeather(_world);
+  tickEconomy(_world);
+  tickCrime(_world);
+  tickConstruction(_world);
+  tickScheduledEvents(_world);
+  tickRandomEvents(_world);
 }
 
-export const TICK_MS = SIM_TICK_MS;
+function publish() {
+  _snapshot = buildSnapshot(_world);
+  for (const l of _listeners) l();
+}
 
-export function clock(world) {
-  return formatClock(world.state);
+// =============================================================================
+// Snapshot builder
+// Snapshot adalah versi *immutable* dari _world yang dipakai UI.
+// Hanya field yang relevan untuk render — tidak ada `_internal`.
+// =============================================================================
+
+function buildSnapshot(world) {
+  return {
+    hari: world.hari,
+    jam: world.jam,
+    menit: world.menit,
+    waktuHari: world.waktuHari,
+
+    cuaca: world.cuaca,
+    ekonomi: world.ekonomi,
+    ekonomiIndex: Number(world.ekonomiIndex.toFixed(1)),
+
+    kriminalitas: Math.round(world.kriminalitas * 10) / 10,
+    kebahagiaan:  Math.round(world.kebahagiaan * 10) / 10,
+    populasi: world.populasi,
+
+    eventLog: world.eventLog,
+    dramaLog: world.dramaLog,
+
+    npcs: world.npcs,
+    buildings: world.buildings,
+
+    paused: world.paused,
+    speed: world.speed,
+  };
+}
+
+// Cleanup hook untuk hot-reload dev (HMR Vite). Bukan untuk produksi.
+if (typeof import.meta !== 'undefined' && import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    if (_rafId) cancelAnimationFrame(_rafId);
+    _running = false;
+  });
 }
