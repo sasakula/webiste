@@ -1,0 +1,4 @@
+// Komponen NPC (kartu, label, drawer profil) akan diletakkan di sini:
+// - NpcCard.jsx
+// - NpcDrawer.jsx
+// - NpcLabel.jsx
