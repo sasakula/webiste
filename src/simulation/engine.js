@@ -22,6 +22,7 @@ import { tickEconomy } from './economySystem.js';
 import { tickCrime } from './crimeSystem.js';
 import { tickConstruction } from './constructionSystem.js';
 import { tickRandomEvents, tickScheduledEvents, pushEvent } from './eventSystem.js';
+import { tickNpc, tickSocialEncounters, projectNpc } from '../npc/npcAI.js';
 
 // Berapa milidetik per tick pada speed 1x. Lebih kecil = lebih cepat.
 const BASE_TICK_MS = 500;
@@ -31,6 +32,12 @@ const BASE_TICK_MS = 500;
 // =============================================================================
 
 let _world = createWorld();
+// Lakukan satu kali proyeksi NPC awal supaya `_world.npcs` (dipakai UI) tidak kosong
+// sebelum tick pertama dijalankan.
+if (_world._npcs) {
+  _world.npcs = _world._npcs.map(projectNpc);
+  _world.populasi = _world._npcs.length;
+}
 let _snapshot = buildSnapshot(_world);
 let _listeners = new Set();
 let _running = false;
@@ -138,6 +145,15 @@ function tick() {
   tickConstruction(_world);
   tickScheduledEvents(_world);
   tickRandomEvents(_world);
+
+  // Tick semua NPC (decision + decay + arrive + finalize).
+  if (_world._npcs) {
+    for (const npc of _world._npcs) tickNpc(npc, _world);
+    tickSocialEncounters(_world);
+    // Proyeksikan ke `world.npcs` (struktur ringan untuk UI).
+    _world.npcs = _world._npcs.map(projectNpc);
+    _world.populasi = _world._npcs.length;
+  }
 }
 
 function publish() {

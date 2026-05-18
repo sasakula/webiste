@@ -8,10 +8,14 @@
 //   kriminalitas, kebahagiaan- 0..100
 //   populasi                 - jumlah warga
 //   eventLog, dramaLog       - feed kejadian + drama (terbaru di indeks 0)
-//   npcs, buildings          - daftar warga & bangunan
+//   npcs, buildings          - daftar warga & bangunan (dipakai UI)
 //   paused, speed            - kontrol simulasi (1, 2, 4, 8)
 //
 // Field "_internal" (prefix `_`) hanya dipakai engine; UI tidak perlu baca.
+//   _npcs                    - shape kaya per-NPC (24 field, dipakai AI)
+//                              UI selalu baca `npcs` (proyeksi snapshot ringan).
+
+import { createDefaultNPCs } from '../npc/npcData.js';
 
 const SEED_BUILDINGS = [
   { id: 'bld_1', name: 'Kantor Polisi',      type: 'polisi',    district: 'Timur',   status: 'Aktif',     progress: 1   },
@@ -24,18 +28,12 @@ const SEED_BUILDINGS = [
   { id: 'bld_8', name: 'Proyek Rumah Udin',  type: 'rumah',     district: 'Selatan', status: 'Dibangun',  progress: 0.45 },
 ];
 
-const SEED_NPCS = [
-  { id: 'npc_1', name: 'Rian Saputra',  age: 24, job: 'Programmer',      mood: 'Senang',  money: 450000, location: 'Kantor Utama',  status: 'Sedang bekerja' },
-  { id: 'npc_2', name: 'Salsa Pratama', age: 22, job: 'Barista',         mood: 'Galau',   money: 280000, location: 'Kafe Salsa',    status: 'Jaga kafe' },
-  { id: 'npc_3', name: 'Udin Hartono',  age: 30, job: 'Tukang Bangunan', mood: 'Lelah',   money: 320000, location: 'Proyek Rumah', status: 'Bangun rumah' },
-  { id: 'npc_4', name: 'Kevin Wijaya',  age: 25, job: 'Pengangguran',    mood: 'Sedih',   money: 20000,  location: 'Taman Kota',    status: 'Cari kerja' },
-  { id: 'npc_5', name: 'Linda Lestari', age: 23, job: 'Pegawai Kantor',  mood: 'Bahagia', money: 380000, location: 'Kantor Utama',  status: 'Pulang kerja' },
-  { id: 'npc_6', name: 'Maya Permata',  age: 28, job: 'Pemilik Usaha',   mood: 'Stres',   money: 1200000,location: 'Warung Maya',   status: 'Buka usaha' },
-];
-
 export function createWorld() {
   // Mulai jam 06:30, hari 1.
   const startMinutes = 6 * 60 + 30;
+
+  const npcs = createDefaultNPCs(SEED_BUILDINGS);
+
   return {
     // Waktu (akan diisi/diupdate oleh tickTime di engine).
     hari: 1,
@@ -52,8 +50,10 @@ export function createWorld() {
     kebahagiaan: 65,
 
     // Daftar entitas dunia.
-    populasi: SEED_NPCS.length,
-    npcs: SEED_NPCS,
+    populasi: npcs.length,
+    // `npcs` di sini adalah array yang DI-OVERWRITE engine setiap tick dengan
+    // proyeksi ringan dari `_npcs`. UI baca dari sini.
+    npcs: [],
     buildings: SEED_BUILDINGS,
 
     // Log feed.
@@ -70,5 +70,6 @@ export function createWorld() {
     _lastRandomEvent: 0,
     _lastScheduledHour: -1,
     _eventCounter: 1,
+    _npcs: npcs,                // shape kaya per-NPC (24 field) — dipakai AI
   };
 }
