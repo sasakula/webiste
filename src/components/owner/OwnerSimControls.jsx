@@ -7,6 +7,9 @@ const SPEEDS = [1, 2, 4, 8];
 export default function OwnerSimControls({ snapshot, onTogglePause, onSetSpeed, onReset }) {
   // Save / load placeholder — disimpan di localStorage.
   const handleSave = () => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return alert('localStorage tidak tersedia di lingkungan ini.');
+    }
     try {
       const minimal = {
         hari: snapshot.hari, jam: snapshot.jam, menit: snapshot.menit,
@@ -21,6 +24,9 @@ export default function OwnerSimControls({ snapshot, onTogglePause, onSetSpeed, 
     }
   };
   const handleLoad = () => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return alert('localStorage tidak tersedia di lingkungan ini.');
+    }
     try {
       const raw = localStorage.getItem('neolife.savegame.v1');
       if (!raw) return alert('Belum ada save game tersimpan.');
