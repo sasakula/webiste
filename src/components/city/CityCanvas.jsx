@@ -21,6 +21,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef } from 'react';
+import { pickFocusEvent, pickPatrolBuilding } from '../../simulation/cameraSystem.js';
 
 // ---- Konstanta dasar ---------------------------------------------------------
 
@@ -634,7 +635,17 @@ export default function CityCanvas({
   };
 
   // Kamera state internal.
-  const camRef = useRef({ sx: COLS / 2, sy: ROWS / 2, sZoom: 1 });
+  // - sx, sy, sZoom: nilai smoothed yang dipakai render
+  // - tx, ty, tz:    target (di-update saat orbit/event-focus)
+  // - lastFocusId, focusUntil: anti-spam, ganti target maksimal beberapa detik sekali
+  const camRef = useRef({
+    sx: COLS / 2, sy: ROWS / 2, sZoom: 1,
+    tx: COLS / 2, ty: ROWS / 2, tz: 1,
+    lastFocusId: null,
+    nextSwitchAt: 0,
+    holdUntil: 0,
+    lastEventId: null,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -670,26 +681,57 @@ export default function CityCanvas({
 
       // -- Camera --
       // Mode: orbit (drift halus), static (centered), follow (ikuti NPC pertama).
+      // Di liveMode kita aktifkan auto-cinematic: pilih landmark / event drama
+      // dan zoom in halus, ganti target tiap ~10-14 detik atau saat ada drama
+      // baru di lokasi tertentu.
       const cam = camRef.current;
-      let tx = COLS / 2, ty = ROWS / 2, tz;
       const fitScaleX = cssW / MAP_PX_W;
       const fitScaleY = cssH / MAP_PX_H;
-      // liveMode = cover (zoom in supaya canvas terisi penuh).
-      // bukan liveMode = contain (lihat seluruh kota).
       const baseZoom = liveMode
         ? Math.max(fitScaleX, fitScaleY) * 1.05
         : Math.min(fitScaleX, fitScaleY);
-      tz = baseZoom;
+
+      // Default target = drift halus (orbit).
+      let tx = COLS / 2 + Math.sin(time / 6) * 4;
+      let ty = ROWS / 2 + Math.cos(time / 8) * 2;
+      let tz = baseZoom;
 
       if (cameraMode === 'follow' && npcs.length > 0) {
         const first = npcs[0];
         const s = npcStateRef.current.get(first.id);
         if (s) { tx = s.x; ty = s.y; tz = baseZoom * 1.4; }
-      } else if (cameraMode === 'orbit') {
-        tx = COLS / 2 + Math.sin(time / 6) * 4;
-        ty = ROWS / 2 + Math.cos(time / 8) * 2;
+      } else if (liveMode && cameraMode !== 'static') {
+        // Auto-cinematic: cek event penting dulu.
+        const focus = pickFocusEvent(world);
+        if (focus && focus.event.id !== cam.lastEventId) {
+          // Ada drama baru — hop kamera ke lokasinya, hold 8 detik.
+          cam.lastEventId = focus.event.id;
+          cam.lastFocusId = focus.building.id;
+          const tile = mapBuildingToTile(focus.building);
+          cam.tx = tile.x;
+          cam.ty = tile.y;
+          cam.tz = baseZoom * 1.4;
+          cam.holdUntil = time + 8;
+          cam.nextSwitchAt = time + 8;
+        } else if (time >= cam.nextSwitchAt) {
+          // Jadwal patrol berikutnya: pilih landmark random.
+          const target = pickPatrolBuilding(world, cam.lastFocusId);
+          if (target) {
+            cam.lastFocusId = target.id;
+            const tile = mapBuildingToTile(target);
+            cam.tx = tile.x;
+            cam.ty = tile.y;
+            cam.tz = baseZoom * 1.18;
+          }
+          cam.nextSwitchAt = time + 10 + Math.random() * 4;
+          cam.holdUntil = time + 6;
+        }
+        tx = cam.tx ?? tx;
+        ty = cam.ty ?? ty;
+        tz = cam.tz ?? tz;
       }
 
+      // Smoothing — interpolasi halus, hindari jitter.
       cam.sx += (tx - cam.sx) * 0.04;
       cam.sy += (ty - cam.sy) * 0.04;
       cam.sZoom += (tz - cam.sZoom) * 0.05;
@@ -792,6 +834,18 @@ export default function CityCanvas({
       </div>
     </div>
   );
+}
+
+// Memetakan building object (snapshot) ke tile coord di layout.
+// Layout pakai BUILDING_SLOTS sequential, jadi index sama dengan index building
+// di array buildings. Aman dipakai karena world.js menjaga urutan.
+function mapBuildingToTile(building) {
+  // Cari slot yg id-nya cocok di BUILDING_SLOTS via index.
+  const idx = parseInt(String(building.id).replace(/\D+/g, ''), 10) - 1;
+  const slot = BUILDING_SLOTS[Math.max(0, Math.min(BUILDING_SLOTS.length - 1, idx))];
+  if (!slot) return { x: COLS / 2, y: ROWS / 2 };
+  const [x, y, w, h] = slot;
+  return { x: x + w / 2, y: y + h / 2 };
 }
 
 // ---- NPC update + render gabungan -------------------------------------------
