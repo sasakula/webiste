@@ -1,9 +1,9 @@
 {
-  "name": "neolife",
+  "name": "neolife-indonesia",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "NeoLife — Autonomous cyberpunk NPC life simulator",
+  "description": "NeoLife Indonesia — Simulasi Kehidupan Pixel Otonom",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,7 +12,8 @@
   "dependencies": {
     "framer-motion": "^11.3.19",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
