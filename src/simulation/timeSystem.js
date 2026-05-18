@@ -1,18 +1,24 @@
-// Sistem waktu (placeholder). Konversi menit -> jam:menit.
-export function formatClock(minutes) {
-  const m = Math.floor(minutes) % 1440;
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+// Sistem waktu dunia simulasi.
+// 1 hari = 1440 menit dunia. Setiap call tickTime() -> +1 menit.
+
+// Versi yang sesuai spec: 5 fase hari.
+export function partOfDay(jam) {
+  if (jam >= 5  && jam < 11) return 'Pagi';
+  if (jam >= 11 && jam < 15) return 'Siang';
+  if (jam >= 15 && jam < 18) return 'Sore';
+  if (jam >= 18 && jam < 22) return 'Malam';
+  return 'Larut Malam';
 }
 
-export function partOfDay(minutes) {
-  const h = Math.floor(minutes / 60) % 24;
-  if (h < 4)  return 'Larut Malam';
-  if (h < 6)  return 'Subuh';
-  if (h < 11) return 'Pagi';
-  if (h < 15) return 'Siang';
-  if (h < 18) return 'Sore';
-  if (h < 22) return 'Malam';
-  return 'Larut Malam';
+export function tickTime(world) {
+  world._minutesTotal += 1;
+  const dayMin = world._minutesTotal % 1440;
+  world.hari = Math.floor(world._minutesTotal / 1440) + 1;
+  world.jam = Math.floor(dayMin / 60);
+  world.menit = dayMin % 60;
+  world.waktuHari = partOfDay(world.jam);
+}
+
+export function formatClock(world) {
+  return `${String(world.jam).padStart(2, '0')}:${String(world.menit).padStart(2, '0')}`;
 }

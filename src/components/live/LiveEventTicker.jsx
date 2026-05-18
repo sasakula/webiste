@@ -1,21 +1,12 @@
 // Event ticker besar untuk halaman live.
-// Versi horizontal: marquee di bawah (single line, scroll horizontal).
-// Versi vertical:   stack 4 event terbaru di atas event ticker bawah.
-// Data placeholder; akan diganti dengan event log dari engine simulasi.
-import { motion } from 'framer-motion';
-
-const DUMMY_EVENTS = [
-  '06:10 · Rian bangun tidur dan bersiap kerja.',
-  '06:45 · Salsa membeli sarapan di warung.',
-  '07:30 · Budi berangkat kuliah.',
-  '08:10 · Udin diterima kerja sebagai tukang bangunan.',
-  '09:20 · Maya membuka warung kecil.',
-  '10:15 · Proyek Rumah Rian dimulai.',
-  '11:40 · Hujan membuat pembangunan tertunda.',
-  '13:00 · Kafe Salsa mulai ramai.',
-];
+// Sekarang membaca event dari simulation engine via useSimulation().
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSimulation } from '../../hooks/useSimulation.js';
 
 export default function LiveEventTicker({ variant = 'horizontal' }) {
+  const { snapshot } = useSimulation();
+  const events = snapshot.eventLog;
+
   if (variant === 'vertical') {
     // 4 event terbaru sebagai daftar di bawah.
     return (
@@ -26,24 +17,34 @@ export default function LiveEventTicker({ variant = 'horizontal' }) {
             Feed Kejadian
           </span>
         </div>
-        {DUMMY_EVENTS.slice(0, 4).map((e, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="rounded-md border border-white/10 bg-ink-950/70 backdrop-blur px-2 py-1.5 text-[11px] font-mono text-slate-200"
-          >
-            {e}
-          </motion.div>
-        ))}
+        <AnimatePresence initial={false}>
+          {events.slice(0, 4).map((e) => (
+            <motion.div
+              key={e.id}
+              layout
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="rounded-md border border-white/10 bg-ink-950/70 backdrop-blur px-2 py-1.5 text-[11px] font-mono text-slate-200"
+            >
+              <span className="text-slate-500">[{e.time}]</span>{' '}
+              {e.text}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {events.length === 0 ? (
+          <div className="text-[11px] font-mono text-slate-500 italic">Menunggu kejadian…</div>
+        ) : null}
       </div>
     );
   }
 
-  // Horizontal marquee.
-  // Duplikasi list supaya animasi loop mulus.
-  const items = [...DUMMY_EVENTS, ...DUMMY_EVENTS];
+  // === Horizontal marquee. ===
+  // Ambil 12 event terbaru, duplikasi 2x supaya marquee loop mulus.
+  const items = events.slice(0, 12);
+  const doubled = items.length > 0 ? [...items, ...items] : [];
+
   return (
     <div className="absolute inset-x-0 bottom-3 sm:bottom-5 z-20">
       <div className="mx-auto max-w-[95%] rounded-md border border-white/10 bg-ink-950/70 backdrop-blur overflow-hidden">
@@ -55,14 +56,21 @@ export default function LiveEventTicker({ variant = 'horizontal' }) {
             </span>
           </div>
           <div className="relative flex-1 overflow-hidden">
-            <div className="ticker-track flex items-center gap-8 whitespace-nowrap py-2 text-[12px] font-mono text-slate-200">
-              {items.map((e, i) => (
-                <span key={i} className="flex items-center gap-2">
-                  <span className="text-neon-violet">▸</span>
-                  {e}
-                </span>
-              ))}
-            </div>
+            {doubled.length === 0 ? (
+              <div className="px-4 py-2 text-[12px] font-mono text-slate-500 italic">
+                Menunggu kejadian dari kota…
+              </div>
+            ) : (
+              <div className="ticker-track flex items-center gap-8 whitespace-nowrap py-2 text-[12px] font-mono text-slate-200">
+                {doubled.map((e, i) => (
+                  <span key={`${e.id}_${i}`} className="flex items-center gap-2">
+                    <span className="text-neon-violet">▸</span>
+                    <span className="text-slate-500">[{e.time}]</span>
+                    {e.text}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

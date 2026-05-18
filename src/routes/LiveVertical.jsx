@@ -1,10 +1,13 @@
 // /live-vertical  — Live Vertical 9:16 (TikTok/Instagram).
 // Tampilan cinematic untuk penonton mobile.
-import CityCanvasPlaceholder from '../components/city/CityCanvasPlaceholder.jsx';
+import CityCanvas from '../components/city/CityCanvas.jsx';
 import LiveOverlay from '../components/live/LiveOverlay.jsx';
 import LiveEventTicker from '../components/live/LiveEventTicker.jsx';
+import { useSimulation } from '../hooks/useSimulation.js';
 
 export default function LiveVertical() {
+  const { snapshot } = useSimulation();
+
   return (
     <div className="h-full w-full flex items-center justify-center p-3">
       {/* Frame 9:16 cinematic. Lebar dibatasi supaya rapi di desktop juga. */}
@@ -13,7 +16,14 @@ export default function LiveVertical() {
         style={{ aspectRatio: '9 / 16', maxHeight: '100%' }}
       >
         <div className="absolute inset-0">
-          <CityCanvasPlaceholder mode="vertical" fullBleed />
+          <CityCanvas
+            npcs={snapshot.npcs}
+            buildings={snapshot.buildings}
+            world={snapshot}
+            cameraMode="orbit"
+            showLabels
+            liveMode
+          />
         </div>
 
         <LiveOverlay variant="vertical" />

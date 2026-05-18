@@ -2,11 +2,14 @@
 // Tampilan cinematic untuk penonton: kota pixel besar di tengah, overlay LIVE
 // di kiri-atas, info ringkas di kanan-atas, event ticker besar di bawah.
 // Tidak ada sidebar admin. Cocok dijadikan OBS browser source.
-import CityCanvasPlaceholder from '../components/city/CityCanvasPlaceholder.jsx';
+import CityCanvas from '../components/city/CityCanvas.jsx';
 import LiveOverlay from '../components/live/LiveOverlay.jsx';
 import LiveEventTicker from '../components/live/LiveEventTicker.jsx';
+import { useSimulation } from '../hooks/useSimulation.js';
 
 export default function LiveHorizontal() {
+  const { snapshot } = useSimulation();
+
   return (
     <div className="h-full w-full flex items-center justify-center p-4">
       {/* Frame 16:9 cinematic. */}
@@ -16,7 +19,14 @@ export default function LiveHorizontal() {
       >
         {/* Kota pixel mengisi seluruh frame. */}
         <div className="absolute inset-0">
-          <CityCanvasPlaceholder mode="horizontal" fullBleed />
+          <CityCanvas
+            npcs={snapshot.npcs}
+            buildings={snapshot.buildings}
+            world={snapshot}
+            cameraMode="orbit"
+            showLabels
+            liveMode
+          />
         </div>
 
         {/* Overlay info penonton. */}

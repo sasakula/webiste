@@ -1,13 +1,12 @@
 // Overlay penonton untuk halaman live.
-// Berisi:
-//  - badge LIVE merah di pojok kiri-atas
-//  - logo + judul kecil di tengah-atas
-//  - info ringkas (jam, cuaca, populasi) di pojok kanan-atas
-// Dibuat data placeholder dulu — akan disambung ke engine simulasi.
+// Sekarang sudah tersambung ke simulation engine.
 import { motion } from 'framer-motion';
+import { useSimulation } from '../../hooks/useSimulation.js';
 
 export default function LiveOverlay({ variant = 'horizontal' }) {
+  const { snapshot } = useSimulation();
   const isVertical = variant === 'vertical';
+  const clock = `${String(snapshot.jam).padStart(2, '0')}:${String(snapshot.menit).padStart(2, '0')}`;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
@@ -19,16 +18,19 @@ export default function LiveOverlay({ variant = 'horizontal' }) {
         <span className="font-display text-xs sm:text-sm tracking-[0.3em] text-neon-red neon-text">
           LIVE
         </span>
+        {snapshot.paused ? (
+          <span className="ml-2 chip text-neon-amber border-neon-amber/40 bg-neon-amber/10">
+            JEDA
+          </span>
+        ) : null}
       </div>
 
-      {/* Logo + judul, posisi tergantung variant */}
+      {/* Logo + judul */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className={`absolute ${
-          isVertical ? 'top-3 left-1/2 -translate-x-1/2 text-center' : 'top-3 left-1/2 -translate-x-1/2 text-center'
-        }`}
+        className="absolute top-3 left-1/2 -translate-x-1/2 text-center"
       >
         <div className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.35em] text-neon-violet/80">
           Simulasi Kehidupan Pixel Otonom
@@ -39,7 +41,7 @@ export default function LiveOverlay({ variant = 'horizontal' }) {
         </div>
       </motion.div>
 
-      {/* Info ringkas penonton */}
+      {/* Info ringkas penonton — sekarang dari engine. */}
       <div
         className={`absolute ${
           isVertical
@@ -47,10 +49,10 @@ export default function LiveOverlay({ variant = 'horizontal' }) {
             : 'top-3 right-3 sm:top-4 sm:right-4 flex flex-col items-end gap-1.5'
         }`}
       >
-        <Stat label="Hari" value="—" accent="cyan" />
-        <Stat label="Jam"  value="06:30" accent="violet" />
-        <Stat label="Cuaca" value="Cerah" accent="lime" />
-        <Stat label="Warga" value="0 jiwa" accent="pink" />
+        <Stat label="Hari"  value={String(snapshot.hari)}              accent="cyan" />
+        <Stat label="Jam"   value={clock}                              accent="violet" />
+        <Stat label="Cuaca" value={snapshot.cuaca}                     accent="lime" />
+        <Stat label="Warga" value={`${snapshot.populasi} jiwa`}        accent="pink" />
       </div>
 
       {/* Watermark di pojok kanan bawah (subtle, untuk OBS) */}
@@ -59,7 +61,7 @@ export default function LiveOverlay({ variant = 'horizontal' }) {
           isVertical ? 'bottom-3 right-3' : 'bottom-3 right-3 sm:bottom-4 sm:right-4'
         } font-mono text-[9px] uppercase tracking-[0.3em] text-slate-500/70`}
       >
-        neolife.id
+        neolife.id · {snapshot.waktuHari}
       </div>
     </div>
   );
